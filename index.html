@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My Calendar</title>
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt@1.2.2/dist/frappe-gantt.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="assets/icon.svg" alt="" class="brand-logo">
+      <h1>My Calendar</h1>
+    </div>
+
+    <nav class="tabs" role="tablist">
+      <button type="button" role="tab" data-view="summary">สรุป</button>
+      <button type="button" role="tab" data-view="calendar">ปฏิทิน</button>
+      <button type="button" role="tab" data-view="board">บอร์ด</button>
+      <button type="button" role="tab" data-view="gantt">Gantt</button>
+    </nav>
+
+    <div class="topbar-actions">
+      <input type="search" id="search" class="search" placeholder="ค้นหางาน…" aria-label="ค้นหางาน" autocomplete="off">
+      <select id="planFilter" aria-label="กรองตามแผนงาน"></select>
+      <label class="check">
+        <input type="checkbox" id="hideDone"> ซ่อนงานที่เสร็จ
+      </label>
+      <details class="menu" id="menu">
+        <summary class="btn">เพิ่มเติม ▾</summary>
+        <div class="menu-list">
+          <button type="button" id="btnPlans">แผนงาน</button>
+          <button type="button" id="btnDays">วันหยุด / วันพิเศษ</button>
+          <button type="button" id="btnBackup">สำรอง / นำเข้าข้อมูล</button>
+          <button type="button" id="btnPrint">พิมพ์ / บันทึกเป็น PDF</button>
+        </div>
+      </details>
+      <button type="button" class="btn btn-primary" id="btnNewTask">+ งานใหม่</button>
+    </div>
+  </header>
+
+  <div id="storageWarning" class="banner" hidden>
+    เบราว์เซอร์นี้บันทึกข้อมูลไม่ได้ (localStorage ถูกปิดหรือเต็ม) งานที่เพิ่มจะหายเมื่อปิดหน้า
+  </div>
+
+  <div id="backupReminder" class="banner banner-info" hidden>
+    <span id="backupReminderText"></span>
+    <button type="button" class="btn btn-small" id="btnBackupNow">สำรองตอนนี้</button>
+    <button type="button" class="btn btn-small" id="btnBackupLater">ไว้ทีหลัง</button>
+  </div>
+
+  <div class="print-header" id="printHeader"></div>
+
+  <main>
+    <section class="view" id="view-summary" hidden>
+      <div id="summary" class="summary"></div>
+    </section>
+
+    <section class="view" id="view-calendar" hidden>
+      <div id="calendar"></div>
+    </section>
+
+    <section class="view" id="view-board" hidden>
+      <div id="board" class="board"></div>
+    </section>
+
+    <section class="view" id="view-gantt" hidden>
+      <div class="panel">
+        <div class="gantt-toolbar">
+          <div class="segmented" id="ganttModes">
+            <button type="button" data-mode="Day">วัน</button>
+            <button type="button" data-mode="Week">สัปดาห์</button>
+            <button type="button" data-mode="Month">เดือน</button>
+          </div>
+          <button type="button" class="btn" id="ganttToday">วันนี้</button>
+          <span class="hint">ลากแถบเพื่อเลื่อนวัน · ลากปลายแถบเพื่อปรับระยะเวลา · ดับเบิลคลิกเพื่อแก้ไข · ลูกศร = ต้องรองานก่อนหน้า · งานซ้ำไม่แสดงที่นี่</span>
+        </div>
+        <div id="gantt"></div>
+        <p class="empty" id="ganttEmpty" hidden>ยังไม่มีงานที่จะแสดง</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ---------- task dialog ---------- -->
+  <dialog id="taskDialog">
+    <form id="taskForm" novalidate>
+      <h2 id="dialogTitle">งานใหม่</h2>
+
+      <label class="field">
+        <span>ชื่องาน *</span>
+        <input name="title" maxlength="200" autocomplete="off">
+      </label>
+
+      <label class="occurrence" id="occurrenceRow" hidden>
+        <input type="checkbox" name="occurrenceDone">
+        <span id="occurrenceText"></span>
+      </label>
+
+      <label class="field">
+        <span>แผนงาน</span>
+        <select name="planId"></select>
+      </label>
+
+      <label class="check">
+        <input type="checkbox" name="allDay"> ทั้งวัน
+      </label>
+
+      <div class="row">
+        <label class="field"><span>วันเริ่ม *</span><input type="date" name="startDate"></label>
+        <label class="field time-field"><span>เวลาเริ่ม</span><input type="time" name="startTime"></label>
+      </div>
+      <div class="row">
+        <label class="field"><span>วันสิ้นสุด</span><input type="date" name="endDate"></label>
+        <label class="field time-field"><span>เวลาสิ้นสุด</span><input type="time" name="endTime"></label>
+      </div>
+      <p class="date-hint" id="dateHint" hidden></p>
+
+      <div class="repeat-box">
+        <div class="row">
+          <label class="field">
+            <span>ทำซ้ำ</span>
+            <select name="repeatFreq">
+              <option value="">ไม่ซ้ำ</option>
+              <option value="daily">ทุกวัน</option>
+              <option value="weekly">ทุกสัปดาห์</option>
+              <option value="monthly">ทุกเดือน</option>
+              <option value="yearly">ทุกปี</option>
+            </select>
+          </label>
+          <label class="field repeat-opt">
+            <span>ทุกๆ <span id="repeatUnit"></span></span>
+            <input type="number" name="repeatInterval" min="1" max="99" value="1">
+          </label>
+          <label class="field repeat-opt">
+            <span>ถึงวันที่ (ว่าง = ไม่สิ้นสุด)</span>
+            <input type="date" name="repeatUntil">
+          </label>
+        </div>
+        <div class="weekdays repeat-weekly" id="repeatWeekdays"></div>
+        <label class="check repeat-opt"><input type="checkbox" name="repeatSkipOff"> ข้ามวันหยุด (วันหยุดประจำสัปดาห์ / วันหยุดบริษัท / วันลา)</label>
+      </div>
+
+      <fieldset class="field">
+        <span>สีของงาน</span>
+        <div class="swatches" id="colorSwatches"></div>
+      </fieldset>
+
+      <div class="row">
+        <label class="field">
+          <span>ความสำคัญ</span>
+          <select name="priority">
+            <option value="high">สูง</option>
+            <option value="normal">ปกติ</option>
+            <option value="low">ต่ำ</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>สถานะ</span>
+          <select name="status">
+            <option value="todo">ยังไม่เริ่ม</option>
+            <option value="doing">กำลังทำ</option>
+            <option value="done">เสร็จแล้ว</option>
+          </select>
+        </label>
+      </div>
+
+      <fieldset class="field">
+        <span>Checklist</span>
+        <ul class="checklist" id="checklist"></ul>
+        <div class="checklist-add">
+          <input id="checklistNew" maxlength="300" placeholder="เพิ่มรายการ แล้วกด Enter" autocomplete="off">
+          <button type="button" class="btn btn-small" id="btnChecklistAdd">เพิ่ม</button>
+        </div>
+      </fieldset>
+
+      <label class="field">
+        <span>ความคืบหน้า <output id="progressOut">0%</output> <small id="progressAuto" hidden>(คำนวณจาก checklist)</small></span>
+        <input type="range" name="progress" min="0" max="100" step="1" value="0">
+      </label>
+
+      <details class="deps" id="depsBox">
+        <summary>ต้องรองานเหล่านี้เสร็จก่อน <span id="depsCount"></span></summary>
+        <p class="hint">ใช้แสดงลูกศรใน Gantt — เลื่อนงานก่อนหน้า งานที่รออยู่จะเลื่อนตาม</p>
+        <input type="search" id="depsSearch" class="search" placeholder="ค้นหางาน…" autocomplete="off">
+        <ul class="deps-list" id="depsList"></ul>
+      </details>
+
+      <label class="field">
+        <span>รายละเอียด</span>
+        <textarea name="description" rows="3"></textarea>
+      </label>
+
+      <p class="form-error" id="formError" hidden></p>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-danger" id="btnDelete" hidden>ลบ</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn" id="btnCancel">ยกเลิก</button>
+        <button type="submit" class="btn btn-primary">บันทึก</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ---------- plans dialog ---------- -->
+  <dialog id="plansDialog">
+    <div class="dialog-head">
+      <h2>แผนงาน</h2>
+      <button type="button" class="btn" id="btnPlansClose">ปิด</button>
+    </div>
+
+    <ul class="plan-list" id="planList"></ul>
+    <p class="empty" id="planEmpty" hidden>ยังไม่มีแผนงาน สร้างแผนแรกได้ด้านล่าง</p>
+
+    <form id="planForm" novalidate>
+      <h3 id="planFormTitle">เพิ่มแผนงาน</h3>
+      <div class="row row-plan">
+        <label class="field">
+          <span>ชื่อแผน *</span>
+          <input name="name" maxlength="100" autocomplete="off">
+        </label>
+        <label class="field field-color">
+          <span>สี</span>
+          <input type="color" name="color">
+        </label>
+      </div>
+      <label class="field">
+        <span>รายละเอียด</span>
+        <textarea name="description" rows="2"></textarea>
+      </label>
+      <p class="form-error" id="planError" hidden></p>
+      <div class="dialog-actions">
+        <span class="spacer"></span>
+        <button type="button" class="btn" id="btnPlanCancelEdit" hidden>ยกเลิกแก้ไข</button>
+        <button type="submit" class="btn btn-primary" id="btnPlanSave">เพิ่มแผน</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ---------- special days dialog ---------- -->
+  <dialog id="daysDialog" class="dialog-wide">
+    <div class="dialog-head">
+      <h2>วันหยุด / วันพิเศษ</h2>
+      <button type="button" class="btn" id="btnDaysClose">ปิด</button>
+    </div>
+
+    <section class="dialog-section">
+      <h3>วันหยุดประจำสัปดาห์</h3>
+      <div class="weekdays" id="weekendDays"></div>
+      <p class="hint">ใช้แรเงาในปฏิทิน/Gantt และนับจำนวนวันทำงาน</p>
+    </section>
+
+    <section class="dialog-section">
+      <div class="section-head">
+        <h3>รายการวันพิเศษ</h3>
+        <button type="button" class="btn btn-small" id="btnThaiHolidays">+ วันหยุดราชการไทย</button>
+      </div>
+      <ul class="plan-list" id="dayList"></ul>
+      <p class="empty" id="dayEmpty" hidden>ยังไม่มีวันพิเศษ</p>
+    </section>
+
+    <form id="dayForm" novalidate>
+      <h3 id="dayFormTitle">เพิ่มวันพิเศษ</h3>
+      <div class="row">
+        <label class="field">
+          <span>ชื่อ *</span>
+          <input name="name" maxlength="100" autocomplete="off" placeholder="เช่น วันหยุดประจำปีบริษัท">
+        </label>
+        <label class="field">
+          <span>ประเภท</span>
+          <select name="type"></select>
+        </label>
+      </div>
+      <div class="row">
+        <label class="field"><span>วันเริ่ม *</span><input type="date" name="start"></label>
+        <label class="field"><span>ถึงวันที่ (ถ้ามีหลายวัน)</span><input type="date" name="end"></label>
+      </div>
+      <label class="check"><input type="checkbox" name="yearly"> ซ้ำทุกปี (วันที่เดิม)</label>
+      <p class="form-error" id="dayError" hidden></p>
+      <div class="dialog-actions">
+        <span class="spacer"></span>
+        <button type="button" class="btn" id="btnDayCancelEdit" hidden>ยกเลิกแก้ไข</button>
+        <button type="submit" class="btn btn-primary" id="btnDaySave">เพิ่ม</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ---------- backup dialog ---------- -->
+  <dialog id="backupDialog" class="dialog-wide">
+    <div class="dialog-head">
+      <h2>สำรอง / นำเข้าข้อมูล</h2>
+      <button type="button" class="btn" id="btnBackupClose">ปิด</button>
+    </div>
+
+    <section class="dialog-section">
+      <h3>สำรองข้อมูล</h3>
+      <p class="hint">ข้อมูลทั้งหมดอยู่ในเบราว์เซอร์นี้เท่านั้น ควรดาวน์โหลดไฟล์สำรองเก็บไว้เป็นระยะ และใช้ไฟล์นี้ย้ายข้อมูลไปเครื่องอื่น</p>
+      <p id="lastBackup" class="hint"></p>
+      <button type="button" class="btn btn-primary" id="btnExportJson">ดาวน์โหลดไฟล์สำรอง (.json)</button>
+    </section>
+
+    <section class="dialog-section">
+      <h3>นำเข้าจากไฟล์สำรอง</h3>
+      <input type="file" id="importFile" accept=".json,application/json">
+      <div class="dialog-actions">
+        <button type="button" class="btn" id="btnImportMerge" disabled>รวมกับข้อมูลเดิม</button>
+        <button type="button" class="btn btn-danger" id="btnImportReplace" disabled>แทนที่ข้อมูลทั้งหมด</button>
+      </div>
+      <p class="hint" id="importInfo"></p>
+    </section>
+
+    <section class="dialog-section">
+      <h3>ส่งออกไปยัง Google Calendar / Outlook (.ics)</h3>
+      <label class="check"><input type="checkbox" id="icsIncludeDays" checked> รวมวันหยุด / วันพิเศษ</label>
+      <p class="hint">Google Calendar: ตั้งค่า → นำเข้าและส่งออก → นำเข้า · Outlook: ไฟล์ → เปิดและส่งออก → นำเข้า/ส่งออก</p>
+      <button type="button" class="btn" id="btnExportIcs">ดาวน์โหลด .ics</button>
+    </section>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.15/locales/th.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/frappe-gantt@1.2.2/dist/frappe-gantt.umd.js"></script>
+  <script src="js/dateutil.js"></script>
+  <script src="js/format.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/specialdays.js"></script>
+  <script src="js/tasks.js"></script>
+  <script src="js/recurrence.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/backup.js"></script>
+  <script src="js/calendar.js"></script>
+  <script src="js/board.js"></script>
+  <script src="js/gantt.js"></script>
+  <script src="js/summary.js"></script>
+  <script src="js/taskdialog.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
