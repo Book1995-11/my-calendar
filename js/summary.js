@@ -29,7 +29,8 @@ const SummaryView = (() => {
       : Format.taskRange(task);
     return `
       <li>
-        <button type="button" class="summary-item" data-id="${esc(task.id)}" data-occurrence="${occurrence || ''}">
+        <button type="button" class="summary-item" data-id="${esc(task.id)}" data-occurrence="${occurrence || ''}"
+                data-tip="${esc(task.id)}" data-tip-occurrence="${occurrence || ''}">
           <span class="dot" style="background:${color}"></span>
           <span class="summary-title">${occurrence ? '↻ ' : ''}${esc(task.title)}</span>
           <span class="summary-meta">${showDate ? esc(when) : ''}${plan ? `${showDate ? ' · ' : ''}${esc(plan.name)}` : ''}</span>

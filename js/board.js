@@ -18,19 +18,19 @@ const BoardView = (() => {
     let meta = esc(Format.taskRange(task));
     if (recurring) meta = `↻ ${esc(Recurrence.describe(task))}<br>${next ? 'ครั้งถัดไป ' + Format.shortDate(next) : 'สิ้นสุดแล้ว'}`;
     return `
-      <article class="card" draggable="true" data-id="${esc(task.id)}" tabindex="0"
+      <article class="card" draggable="true" data-id="${esc(task.id)}" data-tip="${esc(task.id)}" tabindex="0"
                style="border-left-color:${Format.taskColor(task, plan)}">
         <div class="card-title">
-          <span class="dot" style="background:${priorityColor}" title="ความสำคัญ: ${Format.PRIORITY_LABELS[task.priority] || ''}"></span>
+          <span class="dot" style="background:${priorityColor}"></span>
           ${esc(task.title)}
         </div>
         <div class="card-meta${overdue ? ' overdue' : ''}">${meta}${overdue ? ' · เลยกำหนด' : ''}</div>
         <div class="chips">
           ${plan ? `<span class="chip"><span class="dot" style="background:${Format.safeColor(plan.color)}"></span>${esc(plan.name)}</span>` : ''}
           ${checklist.length ? `<span class="chip${checked === checklist.length ? ' chip-ok' : ''}">☑ ${checked}/${checklist.length}</span>` : ''}
-          ${(task.dependsOn || []).length ? `<span class="chip" title="ต้องรองานอื่นเสร็จก่อน">⛓ ${task.dependsOn.length}</span>` : ''}
+          ${(task.dependsOn || []).length ? `<span class="chip">⛓ ${task.dependsOn.length}</span>` : ''}
         </div>
-        <div class="progress" title="ความคืบหน้า ${progress}%"><div style="width:${progress}%"></div></div>
+        <div class="progress"><div style="width:${progress}%"></div></div>
       </article>`;
   }
 

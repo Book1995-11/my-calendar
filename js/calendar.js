@@ -119,6 +119,12 @@ const CalendarView = (() => {
         const { taskId, occurrence } = info.event.extendedProps;
         if (taskId) handlers.onEventClick(taskId, occurrence);
       },
+      eventDidMount: (info) => {
+        const { taskId, occurrence } = info.event.extendedProps;
+        if (!taskId) return;
+        info.el.dataset.tip = taskId;
+        if (occurrence) info.el.dataset.tipOccurrence = occurrence;
+      },
       eventDrop: moved,
       eventResize: moved,
     });

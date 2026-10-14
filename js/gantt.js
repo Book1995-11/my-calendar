@@ -52,6 +52,10 @@ const GanttView = (() => {
   // Frappe sizes its container to exactly the rows, so the horizontal
   // scrollbar hides the last row. Add room for it, and cap at the panel
   // height so the chart scrolls inside (keeping the date header sticky).
+  function tagBars() {
+    root.querySelectorAll('.bar-wrapper[data-id]').forEach((el) => { el.dataset.tip = el.dataset.id; });
+  }
+
   function fitHeight() {
     const container = root.querySelector('.gantt-container');
     if (!container || !gantt) return;
@@ -103,6 +107,7 @@ const GanttView = (() => {
         handlers.onDatesChanged(t.id, DateUtil.fmtDate(start), DateUtil.fmtDate(end)),
       on_progress_change: (t, progress) => handlers.onProgressChanged(t.id, Math.round(progress)),
     });
+    tagBars();
     fitHeight();
   }
 
@@ -110,6 +115,7 @@ const GanttView = (() => {
     mode = m;
     if (gantt) {
       gantt.change_view_mode(m);
+      tagBars();
       fitHeight();
     }
   }

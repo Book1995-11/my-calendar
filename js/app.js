@@ -476,6 +476,14 @@
 
   // ---------- views ----------
 
+  Tooltip.init({
+    task(id) {
+      const task = Storage.getTask(id);
+      return task ? { task, plan: task.planId ? Storage.getPlan(task.planId) : null } : null;
+    },
+    allTasks: () => Storage.getTasks(),
+  });
+
   SummaryView.init($('#summary'), { onOpen: openTask });
 
   CalendarView.init($('#calendar'), {
